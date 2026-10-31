@@ -30,6 +30,18 @@ builder.Services.AddOptions<MeetingCleanupOptions>()
     .ValidateOnStart();
 builder.Services.AddHostedService<MeetingCleanupWorker>();
 builder.Services.AddScoped<JwtTokenService>();
+builder.Services.AddScoped<NotificationEmailService>();
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+builder.Services.AddScoped<EmailOutboxProcessor>();
+builder.Services.AddOptions<SmtpOptions>()
+    .BindConfiguration("Smtp")
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddOptions<EmailDeliveryOptions>()
+    .BindConfiguration("EmailDelivery")
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddHostedService<EmailDeliveryWorker>();
 
 builder.Services.AddOptions<JwtOptions>()
     .BindConfiguration("Jwt")

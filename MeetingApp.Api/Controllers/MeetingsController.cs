@@ -20,11 +20,16 @@ public class MeetingsController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly MeetingDocumentStorage _documentStorage;
+    private readonly NotificationEmailService _notificationEmails;
 
-    public MeetingsController(AppDbContext context, MeetingDocumentStorage documentStorage)
+    public MeetingsController(
+        AppDbContext context,
+        MeetingDocumentStorage documentStorage,
+        NotificationEmailService notificationEmails)
     {
         _context = context;
         _documentStorage = documentStorage;
+        _notificationEmails = notificationEmails;
     }
 
     [HttpGet]
@@ -122,8 +127,12 @@ public class MeetingsController : ControllerBase
 
         try
         {
+            await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
             _context.Meetings.Add(meeting);
             await _context.SaveChangesAsync(cancellationToken);
+            await _notificationEmails.QueueMeetingAsync(meeting, MeetingNotificationType.Created, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
         catch
         {
@@ -185,6 +194,7 @@ public class MeetingsController : ControllerBase
         int updated;
         try
         {
+            await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
             updated = await _context.Meetings
                 .Where(current => current.Id == id && current.CreatedById == userId.Value
                     && current.DocumentPath == oldFile && !current.IsCancelled)
@@ -195,6 +205,19 @@ public class MeetingsController : ControllerBase
                     .SetProperty(current => current.EndsAtUtc, endsAt)
                     .SetProperty(current => current.DocumentPath, fileName)
                     .SetProperty(current => current.DocumentOriginalName, originalName), cancellationToken);
+
+            if (updated > 0)
+            {
+                meeting.Name = name;
+                meeting.Description = description;
+                meeting.StartsAtUtc = startsAt;
+                meeting.EndsAtUtc = endsAt;
+                meeting.DocumentPath = fileName;
+                meeting.DocumentOriginalName = originalName;
+                await _notificationEmails.QueueMeetingAsync(meeting, MeetingNotificationType.Updated, cancellationToken);
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            }
         }
         catch
         {
@@ -210,12 +233,6 @@ public class MeetingsController : ControllerBase
 
         if (document is not null) _documentStorage.TryDelete(oldFile);
 
-        meeting.Name = name;
-        meeting.Description = description;
-        meeting.StartsAtUtc = startsAt;
-        meeting.EndsAtUtc = endsAt;
-        meeting.DocumentPath = fileName;
-        meeting.DocumentOriginalName = originalName;
         return Ok(ToResponse(meeting));
     }
 
@@ -228,8 +245,9 @@ public class MeetingsController : ControllerBase
         var userId = await GetCurrentUserIdAsync(cancellationToken);
         if (userId is null) return Unauthorized();
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
         var cancelledAtUtc = DateTime.UtcNow;
-        await _context.Meetings
+        var updated = await _context.Meetings
             .Where(meeting => meeting.Id == id && meeting.CreatedById == userId.Value
                 && !meeting.IsCancelled)
             .ExecuteUpdateAsync(setters => setters
@@ -241,7 +259,16 @@ public class MeetingsController : ControllerBase
             meeting => meeting.Id == id && meeting.CreatedById == userId.Value,
             cancellationToken);
 
-        return meeting is null ? NotFound() : Ok(ToResponse(meeting));
+        if (meeting is null) return NotFound();
+
+        if (updated > 0)
+        {
+            await _notificationEmails.QueueMeetingAsync(meeting, MeetingNotificationType.Cancelled, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return Ok(ToResponse(meeting));
     }
 
     [HttpDelete("{id:int}")]

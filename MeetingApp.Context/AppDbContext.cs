@@ -16,6 +16,8 @@ public class AppDbContext : DbContext
 
     public DbSet<MeetingDeletionLog> MeetingDeletionLogs => Set<MeetingDeletionLog>();
 
+    public DbSet<EmailOutboxMessage> EmailOutboxMessages => Set<EmailOutboxMessage>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

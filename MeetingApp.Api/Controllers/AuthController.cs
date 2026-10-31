@@ -22,17 +22,20 @@ public class AuthController : ControllerBase
     private readonly IPasswordHasher<AppUser> _passwordHasher;
     private readonly ProfileImageStorage _profileImageStorage;
     private readonly JwtTokenService _jwtTokenService;
+    private readonly NotificationEmailService _notificationEmails;
 
     public AuthController(
         AppDbContext context,
         IPasswordHasher<AppUser> passwordHasher,
         ProfileImageStorage profileImageStorage,
-        JwtTokenService jwtTokenService)
+        JwtTokenService jwtTokenService,
+        NotificationEmailService notificationEmails)
     {
         _context = context;
         _passwordHasher = passwordHasher;
         _profileImageStorage = profileImageStorage;
         _jwtTokenService = jwtTokenService;
+        _notificationEmails = notificationEmails;
     }
 
     [AllowAnonymous]
@@ -166,6 +169,7 @@ public class AuthController : ControllerBase
         try
         {
             _context.Users.Add(user);
+            _notificationEmails.QueueWelcome(user);
             await _context.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException exception)
