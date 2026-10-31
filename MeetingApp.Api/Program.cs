@@ -20,6 +20,7 @@ var connectionString =
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 builder.Services.AddScoped<ProfileImageStorage>();
+builder.Services.AddScoped<MeetingDocumentStorage>();
 builder.Services.AddScoped<JwtTokenService>();
 
 builder.Services.AddOptions<JwtOptions>()
