@@ -219,6 +219,31 @@ public class MeetingsController : ControllerBase
         return Ok(ToResponse(meeting));
     }
 
+    [HttpPost("{id:int}/cancel")]
+    [ProducesResponseType(typeof(MeetingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Cancel(int id, CancellationToken cancellationToken)
+    {
+        var userId = await GetCurrentUserIdAsync(cancellationToken);
+        if (userId is null) return Unauthorized();
+
+        var cancelledAtUtc = DateTime.UtcNow;
+        await _context.Meetings
+            .Where(meeting => meeting.Id == id && meeting.CreatedById == userId.Value
+                && !meeting.IsCancelled)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(meeting => meeting.IsCancelled, true)
+                .SetProperty(meeting => meeting.CancelledAtUtc, (DateTime?)cancelledAtUtc),
+                cancellationToken);
+
+        var meeting = await _context.Meetings.AsNoTracking().SingleOrDefaultAsync(
+            meeting => meeting.Id == id && meeting.CreatedById == userId.Value,
+            cancellationToken);
+
+        return meeting is null ? NotFound() : Ok(ToResponse(meeting));
+    }
+
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

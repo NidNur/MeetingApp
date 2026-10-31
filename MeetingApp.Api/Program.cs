@@ -2,6 +2,7 @@ using System.Text;
 using MeetingApp.Api.OpenApi;
 using MeetingApp.Api.Options;
 using MeetingApp.Api.Services;
+using MeetingApp.Api.Workers;
 using MeetingApp.Context;
 using MeetingApp.Model.Entities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -21,6 +22,13 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(conn
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 builder.Services.AddScoped<ProfileImageStorage>();
 builder.Services.AddScoped<MeetingDocumentStorage>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<MeetingCleanupService>();
+builder.Services.AddOptions<MeetingCleanupOptions>()
+    .BindConfiguration("MeetingCleanup")
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddHostedService<MeetingCleanupWorker>();
 builder.Services.AddScoped<JwtTokenService>();
 
 builder.Services.AddOptions<JwtOptions>()

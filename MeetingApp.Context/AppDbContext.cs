@@ -14,6 +14,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Meeting> Meetings => Set<Meeting>();
 
+    public DbSet<MeetingDeletionLog> MeetingDeletionLogs => Set<MeetingDeletionLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
