@@ -1,0 +1,16 @@
+# Yerel ortam ayarlari
+.env
+.env.*
+!.env.example
+
+# Visual Studio ve .NET
+.vs/
+**/bin/
+**/obj/
+*.user
+*.suo
+
+# Angular
+**/node_modules/
+**/dist/
+**/.angular/
