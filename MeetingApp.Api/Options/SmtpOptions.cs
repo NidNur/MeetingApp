@@ -24,6 +24,9 @@ public class SmtpOptions : IValidatableObject
 
     public string? Password { get; set; }
 
+    // Enable only for a trusted development relay on a private Docker network.
+    public bool AllowUnencryptedRelay { get; set; }
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (Security is not (SecureSocketOptions.None or SecureSocketOptions.StartTls
@@ -33,10 +36,11 @@ public class SmtpOptions : IValidatableObject
                 "SMTP güvenliği None, StartTls veya SslOnConnect olmalıdır.", [nameof(Security)]);
         }
 
-        if (Security == SecureSocketOptions.None && Host is not ("127.0.0.1" or "::1"))
+        if (Security == SecureSocketOptions.None && Host is not ("127.0.0.1" or "::1")
+            && !AllowUnencryptedRelay)
         {
             yield return new ValidationResult(
-                "Şifrelenmemiş SMTP yalnızca yerel test sunucusunda kullanılabilir.",
+                "Şifrelenmemiş SMTP için yerel test sunucusu veya açıkça izin verilen bir test relay'i kullanılmalıdır.",
                 [nameof(Security), nameof(Host)]);
         }
 

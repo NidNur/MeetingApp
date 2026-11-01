@@ -23,6 +23,10 @@ builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 builder.Services.AddScoped<ProfileImageStorage>();
 builder.Services.AddScoped<MeetingDocumentStorage>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddOptions<DatabaseStartupOptions>()
+    .BindConfiguration("DatabaseStartup")
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 builder.Services.AddScoped<MeetingCleanupService>();
 builder.Services.AddOptions<MeetingCleanupOptions>()
     .BindConfiguration("MeetingCleanup")
@@ -87,14 +91,28 @@ builder.Services.AddOpenApi(options =>
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+await DatabaseStartup.ApplyMigrationsAsync(async cancellationToken =>
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await context.Database.MigrateAsync(cancellationToken);
+}, app.Services.GetRequiredService<IOptions<DatabaseStartupOptions>>().Value,
+    app.Logger, app.Services.GetRequiredService<TimeProvider>(), app.Lifetime.ApplicationStopping);
+
+if (app.Configuration.GetValue<bool?>("Swagger:Enabled") ?? app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "MeetingApp API v1"));
 }
 
-app.UseHttpsRedirection();
+if (app.Configuration.GetValue("HttpsRedirection:Enabled", true))
+    app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapGet("/health/ready", async (AppDbContext context, CancellationToken cancellationToken) =>
+{
+    var ready = await context.Database.CanConnectAsync(cancellationToken);
+    return ready ? (IResult)Results.Ok(new { status = "ready" }) : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+}).AllowAnonymous();
 app.Run();

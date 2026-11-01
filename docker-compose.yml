@@ -1,14 +1,83 @@
+name: meetingapp-docker
+
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_PID: "Developer"
       MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:?MSSQL_SA_PASSWORD tanimlanmali}"
     ports:
-      - "127.0.0.1:1433:1433"
+      - "127.0.0.1:${SQLSERVER_PORT:-14333}:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          SQLCMDPASSWORD="$${MSSQL_SA_PASSWORD}"
+          /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -Q "SELECT 1" -o /dev/null
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: MeetingApp.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=MeetingAppDb;User Id=sa;Password=${MSSQL_SA_PASSWORD:?MSSQL_SA_PASSWORD tanimlanmali};Encrypt=True;TrustServerCertificate=True"
+      Jwt__Issuer: MeetingApp.Api
+      Jwt__Audience: MeetingApp.Web
+      Jwt__SigningKey: "${JWT_SIGNING_KEY:?JWT_SIGNING_KEY en az 32 bayt olmali}"
+      Jwt__ExpirationMinutes: "30"
+      HttpsRedirection__Enabled: "false"
+      Swagger__Enabled: "true"
+      DatabaseStartup__ApplyMigrations: "true"
+      DatabaseStartup__MaxAttempts: "6"
+      DatabaseStartup__RetryDelaySeconds: "5"
+      Smtp__Host: mailpit
+      Smtp__Port: "1025"
+      Smtp__Security: None
+      Smtp__AllowUnencryptedRelay: "true"
+      Smtp__Username: ""
+      Smtp__Password: ""
+      Smtp__FromAddress: noreply@meetingapp.test
+      Smtp__FromName: MeetingApp
+      EmailDelivery__Enabled: "true"
+      EmailDelivery__PollIntervalSeconds: "5"
+      EmailDelivery__BatchSize: "20"
+      EmailDelivery__RetryDelaySeconds: "30"
+      MeetingCleanup__Enabled: "true"
+      MeetingCleanup__PollIntervalSeconds: "${MEETING_CLEANUP_POLL_SECONDS:-60}"
+      MeetingCleanup__RetentionHours: "${MEETING_CLEANUP_RETENTION_HOURS:-24}"
+      MeetingCleanup__BatchSize: "100"
+    ports:
+      - "127.0.0.1:${API_PORT:-5080}:8080"
+    volumes:
+      - api_storage:/app/Storage
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./MeetingApp.Web
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
     restart: unless-stopped
 
   mailpit:
@@ -16,8 +85,7 @@ services:
     environment:
       MP_DATABASE: /data/mailpit.db
     ports:
-      - "127.0.0.1:1025:1025"
-      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:${MAILPIT_PORT:-8026}:8025"
     volumes:
       - mailpit_data:/data
     restart: unless-stopped
@@ -25,3 +93,4 @@ services:
 volumes:
   sqlserver_data:
   mailpit_data:
+  api_storage:
