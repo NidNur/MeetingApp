@@ -30,6 +30,9 @@ public class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
         builder.Property(user => user.PhoneNumber)
             .HasMaxLength(30).IsRequired();
 
+        builder.Property(user => user.TimeZoneId)
+            .HasMaxLength(100);
+
         builder.Property(user => user.PasswordHash)
             .HasMaxLength(1024).IsRequired();
 

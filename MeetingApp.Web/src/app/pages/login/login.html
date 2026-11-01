@@ -1,0 +1,81 @@
+<section class="login-card" aria-labelledby="login-heading">
+  <h2 id="login-heading">Giriş Yap</h2>
+  <p class="intro">Toplantılarınızı yönetmek için hesabınıza giriş yapın.</p>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="submitting()" novalidate>
+    <div class="field">
+      <label for="email">E-posta</label>
+      <input
+        id="email"
+        name="email"
+        type="email"
+        formControlName="email"
+        autocomplete="username"
+        inputmode="email"
+        autocapitalize="none"
+        spellcheck="false"
+        maxlength="256"
+        [readOnly]="submitting()"
+        [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid"
+        [attr.aria-describedby]="form.controls.email.touched && form.controls.email.invalid ? 'email-error' : null"
+      />
+      @if (form.controls.email.touched && form.controls.email.invalid) {
+        <p class="field-error" id="email-error">
+          @if (form.controls.email.hasError('required')) {
+            E-posta adresinizi girin.
+          } @else if (form.controls.email.hasError('maxlength')) {
+            E-posta adresi en fazla 256 karakter olabilir.
+          } @else {
+            Geçerli bir e-posta adresi girin.
+          }
+        </p>
+      }
+    </div>
+
+    <div class="field">
+      <label for="password">Parola</label>
+      <div class="password-field">
+        <input
+          id="password"
+          name="password"
+          [type]="passwordVisible() ? 'text' : 'password'"
+          formControlName="password"
+          autocomplete="current-password"
+          maxlength="128"
+          [readOnly]="submitting()"
+          [attr.aria-invalid]="form.controls.password.touched && form.controls.password.invalid"
+          [attr.aria-describedby]="form.controls.password.touched && form.controls.password.invalid ? 'password-error' : null"
+        />
+        <button
+          class="visibility-button"
+          type="button"
+          [disabled]="submitting()"
+          [attr.aria-label]="passwordVisible() ? 'Parolayı gizle' : 'Parolayı göster'"
+          [attr.aria-pressed]="passwordVisible()"
+          (click)="passwordVisible.set(!passwordVisible())"
+        >
+          {{ passwordVisible() ? 'Gizle' : 'Göster' }}
+        </button>
+      </div>
+      @if (form.controls.password.touched && form.controls.password.invalid) {
+        <p class="field-error" id="password-error">
+          @if (form.controls.password.hasError('required')) {
+            Parolanızı girin.
+          } @else {
+            Parola en fazla 128 karakter olabilir.
+          }
+        </p>
+      }
+    </div>
+
+    @if (errorMessage()) {
+      <p class="request-error" role="alert">{{ errorMessage() }}</p>
+    }
+
+    <button class="submit-button" type="submit" [disabled]="submitting()">
+      {{ submitting() ? 'Giriş yapılıyor…' : 'Giriş Yap' }}
+    </button>
+  </form>
+
+  <p class="register-link">Hesabınız yok mu? <a routerLink="/register">Kayıt ol</a></p>
+</section>

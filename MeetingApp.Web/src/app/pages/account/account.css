@@ -1,0 +1,32 @@
+.account-card {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 28px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+h2 { margin: 0 0 12px; font-size: 24px; }
+.welcome { color: #475569; }
+dl { margin: 24px 0 0; }
+dl div { padding: 14px 0; border-top: 1px solid #e2e8f0; }
+dt { margin-bottom: 6px; color: #64748b; font-size: 14px; }
+dd { margin: 0; overflow-wrap: anywhere; }
+.error { color: #b91c1c; }
+button { padding: 10px 16px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; cursor: pointer; }
+button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
+.time-zone-form { margin-top: 28px; padding-top: 24px; border-top: 1px solid #e2e8f0; }
+.time-zone-form label { display: block; margin-bottom: 8px; font-weight: 600; }
+.time-zone-form input { box-sizing: border-box; width: 100%; padding: 11px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+.time-zone-form input:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+.time-zone-form input[aria-invalid="true"] { border-color: #b91c1c; }
+.hint { color: #64748b; font-size: 14px; line-height: 1.5; }
+.time-zone-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+button.primary { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+button:disabled { opacity: .65; cursor: wait; }
+.success { color: #166534; }
+
+@media (max-width: 480px) {
+  .account-card { padding: 20px; }
+}

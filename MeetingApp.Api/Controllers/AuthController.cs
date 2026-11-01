@@ -75,6 +75,18 @@ public class AuthController : ControllerBase
             await _context.SaveChangesAsync(cancellationToken);
         }
 
+        if (string.IsNullOrWhiteSpace(user.TimeZoneId)
+            && !string.IsNullOrWhiteSpace(request.TimeZoneId))
+        {
+            var timeZoneId = request.TimeZoneId.Trim();
+            var previousTimeZoneId = user.TimeZoneId;
+            await _context.Users
+                .Where(existingUser => existingUser.Id == user.Id
+                    && existingUser.TimeZoneId == previousTimeZoneId)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(existingUser => existingUser.TimeZoneId, timeZoneId), cancellationToken);
+        }
+
         return Ok(_jwtTokenService.CreateToken(user));
     }
 
@@ -100,7 +112,8 @@ public class AuthController : ControllerBase
                 existingUser.FirstName,
                 existingUser.LastName,
                 existingUser.Email,
-                existingUser.PhoneNumber
+                existingUser.PhoneNumber,
+                existingUser.TimeZoneId
             })
             .SingleOrDefaultAsync(cancellationToken);
 
@@ -110,6 +123,41 @@ public class AuthController : ControllerBase
         }
 
         return Ok(user);
+    }
+
+    [Authorize]
+    [HttpPut("me/time-zone")]
+    [Consumes("application/json")]
+    [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> UpdateTimeZone(
+        [FromBody] UpdateTimeZoneRequest request,
+        CancellationToken cancellationToken)
+    {
+        var subject = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        if (!int.TryParse(subject, NumberStyles.None, CultureInfo.InvariantCulture, out var userId))
+            return Unauthorized();
+
+        var user = await _context.Users.SingleOrDefaultAsync(
+            existingUser => existingUser.Id == userId, cancellationToken);
+        if (user is null)
+            return Unauthorized();
+
+        user.TimeZoneId = string.IsNullOrWhiteSpace(request.TimeZoneId)
+            ? null : request.TimeZoneId.Trim();
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return Ok(new
+        {
+            user.Id,
+            user.FirstName,
+            user.LastName,
+            user.Email,
+            user.PhoneNumber,
+            user.TimeZoneId
+        });
     }
 
     [AllowAnonymous]
@@ -144,7 +192,9 @@ public class AuthController : ControllerBase
             LastName = request.LastName.Trim(),
             Email = email,
             NormalizedEmail = normalizedEmail,
-            PhoneNumber = request.PhoneNumber.Trim()
+            PhoneNumber = request.PhoneNumber.Trim(),
+            TimeZoneId = string.IsNullOrWhiteSpace(request.TimeZoneId)
+                ? null : request.TimeZoneId.Trim()
         };
 
         user.PasswordHash = _passwordHasher.HashPassword(

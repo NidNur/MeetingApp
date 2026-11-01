@@ -1,0 +1,45 @@
+.app-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px 20px;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 24px;
+  margin-bottom: 24px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+h1 { margin: 0; font-size: 28px; }
+p { margin: 12px 0 0; color: #64748b; line-height: 1.5; }
+nav { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+nav a, nav button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #334155;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+nav a:hover, nav button:hover { background: #f1f5f9; }
+nav a.active { background: #eff6ff; color: #1d4ed8; }
+nav a:focus-visible, nav button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+
+@media (max-width: 480px) {
+  .app-shell { padding: 20px 12px; }
+  .app-header { padding: 20px; gap: 16px; }
+  h1 { font-size: 24px; }
+}

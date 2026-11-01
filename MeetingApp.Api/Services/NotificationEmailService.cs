@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 using MeetingApp.Context;
 using MeetingApp.Model.Entities;
@@ -47,7 +46,7 @@ public class NotificationEmailService
     {
         var owner = await _context.Users.AsNoTracking()
             .Where(user => user.Id == meeting.CreatedById)
-            .Select(user => new { user.Email, user.FirstName, user.LastName })
+            .Select(user => new { user.Email, user.FirstName, user.LastName, user.TimeZoneId })
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new InvalidOperationException("Toplantının sahibi bulunamadı.");
 
@@ -70,8 +69,8 @@ public class NotificationEmailService
             .AppendLine()
             .AppendLine($"Toplantı no: {meeting.Id}")
             .AppendLine($"Toplantı adı: {meeting.Name}")
-            .AppendLine($"Başlangıç: {FormatUtc(meeting.StartsAtUtc)}")
-            .AppendLine($"Bitiş: {FormatUtc(meeting.EndsAtUtc)}")
+            .AppendLine($"Başlangıç: {EmailDateTimeFormatter.Format(meeting.StartsAtUtc, owner.TimeZoneId)}")
+            .AppendLine($"Bitiş: {EmailDateTimeFormatter.Format(meeting.EndsAtUtc, owner.TimeZoneId)}")
             .AppendLine()
             .AppendLine("Açıklama:")
             .AppendLine(meeting.Description);
@@ -101,7 +100,4 @@ public class NotificationEmailService
         });
     }
 
-    private static string FormatUtc(DateTime value) =>
-        DateTime.SpecifyKind(value, DateTimeKind.Utc)
-            .ToString("dd.MM.yyyy HH:mm 'UTC'", CultureInfo.InvariantCulture);
 }

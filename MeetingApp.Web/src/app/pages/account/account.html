@@ -1,0 +1,44 @@
+<section class="account-card" aria-labelledby="account-title" [attr.aria-busy]="loading()">
+  <h2 id="account-title">Hesabım</h2>
+
+  @if (loading()) {
+    <p role="status">Hesap bilgileriniz yükleniyor…</p>
+  }
+
+  @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+    <button type="button" (click)="loadProfile()">Yeniden dene</button>
+  }
+
+  @if (profile(); as user) {
+    <p class="welcome">Hoş geldiniz, {{ user.firstName }}.</p>
+    <dl>
+      <div><dt>Ad soyad</dt><dd>{{ user.firstName }} {{ user.lastName }}</dd></div>
+      <div><dt>E-posta</dt><dd>{{ user.email }}</dd></div>
+      <div><dt>Telefon</dt><dd>{{ user.phoneNumber }}</dd></div>
+      <div><dt>E-posta saat dilimi</dt><dd>{{ user.timeZoneId || 'UTC (saat dilimi belirtilmemiş)' }}</dd></div>
+    </dl>
+
+    <form class="time-zone-form" [formGroup]="timeZoneForm" (ngSubmit)="saveTimeZone()"
+      [attr.aria-busy]="savingTimeZone()" novalidate>
+      <label for="timeZoneId">E-postalarda kullanılacak saat dilimi</label>
+      <input id="timeZoneId" name="timeZoneId" type="text" formControlName="timeZoneId"
+        maxlength="100" placeholder="Europe/Istanbul" autocomplete="off" spellcheck="false"
+        [readOnly]="savingTimeZone()" (input)="clearTimeZoneFeedback()" [attr.aria-invalid]="!!timeZoneError()"
+        [attr.aria-describedby]="timeZoneError() ? 'time-zone-hint time-zone-error' : 'time-zone-hint'" />
+      <p class="hint" id="time-zone-hint">Örnek: Europe/Istanbul veya Europe/Rome. UTC göstermek için UTC yazabilirsiniz. Boş değerlerde UTC kullanılır.</p>
+      <div class="time-zone-actions">
+        <button type="button" (click)="useBrowserTimeZone()" [disabled]="savingTimeZone()">Tarayıcımın saat dilimini kullan</button>
+        <button type="submit" class="primary" [disabled]="savingTimeZone()">
+          {{ savingTimeZone() ? 'Kaydediliyor…' : 'Saat dilimini kaydet' }}
+        </button>
+      </div>
+      @if (timeZoneError()) {
+        <p class="error" id="time-zone-error" role="alert">{{ timeZoneError() }}</p>
+      }
+      @if (timeZoneSaved()) {
+        <p class="success" role="status">Saat diliminiz kaydedildi. Yeni toplantı e-postaları bu tercihi kullanır.</p>
+      }
+    </form>
+  }
+</section>

@@ -1,0 +1,126 @@
+<section class="register-card" aria-labelledby="register-heading">
+  @if (success()) {
+    <div class="success-state" role="status">
+      <span class="success-mark" aria-hidden="true">✓</span>
+      <h2 id="register-heading">Kaydınız oluşturuldu</h2>
+      <p>Hesabınıza giriş yaparak toplantılarınızı yönetebilirsiniz.</p>
+      <a class="primary-link" routerLink="/login">Giriş yap</a>
+    </div>
+  } @else {
+    <h2 id="register-heading">Kayıt Ol</h2>
+    <p class="intro">Toplantılarınızı yönetmek için hesabınızı oluşturun.</p>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="submitting()" novalidate>
+      <div class="name-grid">
+        <div class="field">
+          <label for="firstName">Ad</label>
+          <input id="firstName" name="firstName" type="text" formControlName="firstName"
+            autocomplete="given-name" maxlength="100" [readOnly]="submitting()"
+            [attr.aria-invalid]="!!fieldError('firstName')"
+            [attr.aria-describedby]="fieldError('firstName') ? 'firstName-error' : null" />
+          @if (fieldError('firstName'); as error) {
+            <p class="field-error" id="firstName-error">{{ error }}</p>
+          }
+        </div>
+        <div class="field">
+          <label for="lastName">Soyad</label>
+          <input id="lastName" name="lastName" type="text" formControlName="lastName"
+            autocomplete="family-name" maxlength="100" [readOnly]="submitting()"
+            [attr.aria-invalid]="!!fieldError('lastName')"
+            [attr.aria-describedby]="fieldError('lastName') ? 'lastName-error' : null" />
+          @if (fieldError('lastName'); as error) {
+            <p class="field-error" id="lastName-error">{{ error }}</p>
+          }
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="email">E-posta</label>
+        <input id="email" name="email" type="email" formControlName="email" autocomplete="email"
+          inputmode="email" autocapitalize="none" spellcheck="false" maxlength="256"
+          [readOnly]="submitting()" [attr.aria-invalid]="!!fieldError('email')"
+          [attr.aria-describedby]="fieldError('email') ? 'email-error' : null" />
+        @if (fieldError('email'); as error) {
+          <p class="field-error" id="email-error">{{ error }}</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="phoneNumber">Telefon</label>
+        <input id="phoneNumber" name="phoneNumber" type="tel" formControlName="phoneNumber"
+          autocomplete="tel" inputmode="tel" maxlength="30" placeholder="+90 555 000 00 00"
+          [readOnly]="submitting()" [attr.aria-invalid]="!!fieldError('phoneNumber')"
+          [attr.aria-describedby]="fieldError('phoneNumber') ? 'phoneNumber-error' : null" />
+        @if (fieldError('phoneNumber'); as error) {
+          <p class="field-error" id="phoneNumber-error">{{ error }}</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="password">Parola</label>
+        <div class="password-field">
+          <input id="password" name="password" [type]="passwordVisible() ? 'text' : 'password'"
+            formControlName="password" autocomplete="new-password" maxlength="128"
+            [readOnly]="submitting()" [attr.aria-invalid]="!!fieldError('password')"
+            [attr.aria-describedby]="fieldError('password') ? 'password-hint password-error' : 'password-hint'" />
+          <button class="visibility-button" type="button" [disabled]="submitting()"
+            [attr.aria-label]="passwordVisible() ? 'Parolaları gizle' : 'Parolaları göster'"
+            [attr.aria-pressed]="passwordVisible()" (click)="passwordVisible.set(!passwordVisible())">
+            {{ passwordVisible() ? 'Gizle' : 'Göster' }}
+          </button>
+        </div>
+        <p class="hint" id="password-hint">12 ile 128 karakter arasında bir parola kullanın.</p>
+        @if (fieldError('password'); as error) {
+          <p class="field-error" id="password-error">{{ error }}</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="confirmPassword">Parola tekrar</label>
+        <input id="confirmPassword" name="confirmPassword" [type]="passwordVisible() ? 'text' : 'password'"
+          formControlName="confirmPassword" autocomplete="new-password" maxlength="128"
+          [readOnly]="submitting()" [attr.aria-invalid]="!!fieldError('confirmPassword')"
+          [attr.aria-describedby]="fieldError('confirmPassword') ? 'confirmPassword-error' : null" />
+        @if (fieldError('confirmPassword'); as error) {
+          <p class="field-error" id="confirmPassword-error">{{ error }}</p>
+        }
+      </div>
+
+      <div class="field profile-field">
+        <label for="profileImage">Profil resmi <span class="optional">(isteğe bağlı)</span></label>
+        <input #profileInput id="profileImage" name="profileImage" type="file"
+          accept=".jpg,.jpeg,.png,image/jpeg,image/png" [disabled]="submitting()"
+          (change)="onProfileImageChange($event)" [attr.aria-invalid]="!!profileImageError()"
+          [attr.aria-describedby]="profileImageError() ? 'profileImage-hint profileImage-error' : 'profileImage-hint'" />
+        <p class="hint" id="profileImage-hint">JPG veya PNG biçiminde, en fazla 2 MB.</p>
+        @if (profileImageError()) {
+          <p class="field-error" id="profileImage-error" role="alert">{{ profileImageError() }}</p>
+          @if (!profileImagePreview()) {
+            <button type="button" class="remove-image" [disabled]="submitting()"
+              (click)="removeProfileImage(profileInput)">Resim seçimini temizle</button>
+          }
+        }
+        @if (profileImagePreview(); as preview) {
+          <div class="profile-preview">
+            <img [src]="preview" alt="Seçilen profil resminin önizlemesi"
+              (error)="onImagePreviewError($event, profileInput)" />
+            <div class="preview-details">
+              <p>{{ profileImage()?.name }}</p>
+              <button type="button" class="remove-image" [disabled]="submitting()"
+                (click)="removeProfileImage(profileInput)">Resmi kaldır</button>
+            </div>
+          </div>
+        }
+      </div>
+
+      @if (errorMessage()) {
+        <p class="request-error" role="alert">{{ errorMessage() }}</p>
+      }
+
+      <button class="submit-button" type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Kayıt oluşturuluyor…' : 'Kayıt Ol' }}
+      </button>
+    </form>
+    <p class="login-link">Zaten hesabınız var mı? <a routerLink="/login">Giriş yap</a></p>
+  }
+</section>

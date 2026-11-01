@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="MeetingApp.Api/MeetingApp.Api.csproj" />
+  <Project Path="MeetingApp.Api.Tests/MeetingApp.Api.Tests.csproj" />
   <Project Path="MeetingApp.Context/MeetingApp.Context.csproj" />
   <Project Path="MeetingApp.Model/MeetingApp.Model.csproj" />
 </Solution>

@@ -14,6 +14,8 @@ public class AppUser
 
     public string PhoneNumber { get; set; } = string.Empty;
 
+    public string? TimeZoneId { get; set; }
+
     public string PasswordHash { get; set; } = string.Empty;
 
     public string? ProfileImagePath { get; set; }

@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
+using MeetingApp.Api.Validation;
 
 namespace MeetingApp.Api.Dtos.Auth;
 
@@ -22,6 +23,10 @@ public class RegisterRequest
     [Phone]
     [StringLength(30)]
     public string PhoneNumber { get; set; } = string.Empty;
+
+    [StringLength(100)]
+    [IanaTimeZone]
+    public string? TimeZoneId { get; set; }
 
     [Required]
     [StringLength(128, MinimumLength = 12)]
