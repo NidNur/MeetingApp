@@ -1,0 +1,108 @@
+<section class="meeting-card" aria-labelledby="meeting-heading" [attr.aria-busy]="loading() || saving()">
+  <a class="back-link" routerLink="/meetings">← Toplantılara dön</a>
+  <h2 id="meeting-heading">{{ heading() }}</h2>
+  <p class="intro">Toplantı bilgilerinizi ve isteğe bağlı dokümanınızı buradan yönetin.</p>
+
+  @if (loading()) {
+    <p class="status-message" role="status">Toplantı yükleniyor…</p>
+  }
+
+  @if (errorMessage()) {
+    <p class="request-error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  @if (canRetry() && !loading()) {
+    <button type="button" class="secondary-button" (click)="retry()">
+      {{ conflict() ? (editing() ? 'Toplantıyı yeniden yükle' : 'Formu yenile') : 'Tekrar dene' }}
+    </button>
+    @if (conflict()) {
+      <p class="hint">Yeniden yükleme, kaydedilmemiş değişikliklerinizi siler.</p>
+    }
+  }
+
+  @if (!loading() && !unavailable()) {
+    @if (meeting()?.isCancelled) {
+      <p class="notice" role="status">Bu toplantı iptal edildi. Bilgileri görüntüleyebilirsiniz; değişiklik kaydedilemez.</p>
+    }
+    @if (completed()) {
+      <p class="success-message" role="status">Toplantı kaydedildi. <a routerLink="/meetings">Toplantı listesine dön</a></p>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="saving()" novalidate>
+      <fieldset [disabled]="readOnly()">
+        <legend class="visually-hidden">Toplantı bilgileri</legend>
+        <div class="field">
+          <label for="meetingName">Toplantı adı</label>
+          <input id="meetingName" name="name" type="text" formControlName="name" maxlength="200"
+            [readOnly]="readOnly()" [attr.aria-invalid]="!!fieldError('name')"
+            [attr.aria-describedby]="fieldError('name') ? 'meetingName-error' : null" />
+          @if (fieldError('name'); as error) {
+            <p class="field-error" id="meetingName-error">{{ error }}</p>
+          }
+        </div>
+
+        <div class="field">
+          <label for="description">Açıklama</label>
+          <textarea id="description" name="description" formControlName="description" rows="5" maxlength="4000"
+            [readOnly]="readOnly()" [attr.aria-invalid]="!!fieldError('description')"
+            [attr.aria-describedby]="fieldError('description') ? 'description-error' : null"></textarea>
+          @if (fieldError('description'); as error) {
+            <p class="field-error" id="description-error">{{ error }}</p>
+          }
+        </div>
+
+        <p class="time-zone" id="time-zone">Tarih ve saatler {{ timeZone }} saat dilimindedir. Kendi yerel saatinize göre girin.</p>
+        <div class="date-grid">
+          <div class="field">
+            <label for="startsAt">Başlangıç</label>
+            <input id="startsAt" name="startsAt" type="datetime-local" formControlName="startsAt" step="60"
+              [readOnly]="readOnly()" [attr.aria-invalid]="!!fieldError('startsAt')"
+              [attr.aria-describedby]="fieldError('startsAt') ? 'time-zone startsAt-error' : 'time-zone'" />
+            @if (fieldError('startsAt'); as error) {
+              <p class="field-error" id="startsAt-error">{{ error }}</p>
+            }
+          </div>
+          <div class="field">
+            <label for="endsAt">Bitiş</label>
+            <input id="endsAt" name="endsAt" type="datetime-local" formControlName="endsAt" step="60"
+              [readOnly]="readOnly()" [attr.aria-invalid]="!!fieldError('endsAt')"
+              [attr.aria-describedby]="fieldError('endsAt') ? 'time-zone endsAt-error' : 'time-zone'" />
+            @if (fieldError('endsAt'); as error) {
+              <p class="field-error" id="endsAt-error">{{ error }}</p>
+            }
+          </div>
+        </div>
+
+        <div class="field document-field">
+          <label for="document">Doküman <span class="optional">(isteğe bağlı)</span></label>
+          @if (meeting()?.hasDocument) {
+            <p class="existing-document">Mevcut doküman: <strong>{{ meeting()?.documentOriginalName || 'Toplantı dokümanı' }}</strong></p>
+            <p class="hint">Yeni dosya seçmezseniz mevcut doküman korunur. Dokümanı toplantı listesinden kaldırabilirsiniz.</p>
+          }
+          <input #documentInput id="document" name="document" type="file"
+            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            [disabled]="readOnly()" (change)="onDocumentChange($event)"
+            [attr.aria-invalid]="!!documentError()"
+            [attr.aria-describedby]="documentError() ? 'document-hint document-error' : 'document-hint'" />
+          <p class="hint" id="document-hint">PDF veya DOCX biçiminde, en fazla 10 MB.</p>
+          @if (document(); as selected) {
+            <p class="selected-document">Seçilen dosya: <strong>{{ selected.name }}</strong></p>
+          }
+          @if (documentError()) {
+            <p class="field-error" id="document-error" role="alert">{{ documentError() }}</p>
+          }
+          @if (document() || documentError()) {
+            <button type="button" class="remove-document" [disabled]="readOnly()"
+              (click)="removeDocument(documentInput)">Dosya seçimini temizle</button>
+          }
+        </div>
+      </fieldset>
+      <div class="actions">
+        <button class="submit-button" type="submit" [disabled]="readOnly()">
+          {{ saving() ? 'Kaydediliyor…' : editing() ? 'Değişiklikleri kaydet' : 'Toplantı oluştur' }}
+        </button>
+        <a class="secondary-link" routerLink="/meetings">Listeye dön</a>
+      </div>
+    </form>
+  }
+</section>

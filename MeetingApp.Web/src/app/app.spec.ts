@@ -38,7 +38,7 @@ describe('Application navigation', () => {
     fixture.detectChanges();
     const element = fixture.nativeElement as HTMLElement;
     const links = Array.from(element.querySelectorAll('nav a'));
-    expect(links.map(link => link.getAttribute('href'))).toEqual(['/account']);
+    expect(links.map(link => link.getAttribute('href'))).toEqual(['/meetings', '/account']);
     expect(element.querySelector('nav button')?.textContent).toContain('Çıkış yap');
   });
 

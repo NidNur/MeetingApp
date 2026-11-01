@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.6537497">
+  <PropertyGroup>
+    <StartupCommand>npm.cmd start</StartupCommand>
+    <ShouldRunBuildScript Condition="'$(Configuration)' == 'Debug'">false</ShouldRunBuildScript>
+    <BuildOutputFolder>$(MSBuildProjectDirectory)\dist\meeting-app\browser</BuildOutputFolder>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,17 @@
+[
+  {
+    "Name": "MeetingApp - API ve Web",
+    "Projects": [
+      {
+        "Path": "MeetingApp.Api\\MeetingApp.Api.csproj",
+        "Action": "Start",
+        "DebugTarget": "https"
+      },
+      {
+        "Path": "MeetingApp.Web\\MeetingApp.Web.esproj",
+        "Action": "Start",
+        "DebugTarget": "MeetingApp Web"
+      }
+    ]
+  }
+]

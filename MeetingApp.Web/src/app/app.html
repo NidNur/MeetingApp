@@ -7,6 +7,7 @@
 
     <nav aria-label="Ana menü">
       @if (auth.user()) {
+        <a routerLink="/meetings" routerLinkActive="active" ariaCurrentWhenActive="page">Toplantılarım</a>
         <a routerLink="/account" routerLinkActive="active" ariaCurrentWhenActive="page">Hesabım</a>
         <button type="button" (click)="auth.logout()">Çıkış yap</button>
       } @else {

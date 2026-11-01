@@ -7,7 +7,7 @@ import { authGuard } from './core/auth/auth.guard';
 export const routes: Routes = [
   {
     path: '',
-    redirectTo: 'login',
+    redirectTo: 'meetings',
     pathMatch: 'full'
   },
   {
@@ -19,12 +19,27 @@ export const routes: Routes = [
     component: Register
   },
   {
+    path: 'meetings',
+    loadComponent: () => import('./pages/meetings/meetings').then(page => page.Meetings),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'meetings/new',
+    loadComponent: () => import('./pages/meeting-form/meeting-form').then(page => page.MeetingForm),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'meetings/:id/edit',
+    loadComponent: () => import('./pages/meeting-form/meeting-form').then(page => page.MeetingForm),
+    canActivate: [authGuard]
+  },
+  {
     path: 'account',
     component: Account,
     canActivate: [authGuard]
   },
   {
     path: '**',
-    redirectTo: 'login'
+    redirectTo: 'meetings'
   }
 ];

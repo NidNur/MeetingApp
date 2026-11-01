@@ -3,4 +3,8 @@
   <Project Path="MeetingApp.Api.Tests/MeetingApp.Api.Tests.csproj" />
   <Project Path="MeetingApp.Context/MeetingApp.Context.csproj" />
   <Project Path="MeetingApp.Model/MeetingApp.Model.csproj" />
+  <Project Path="MeetingApp.Web/MeetingApp.Web.esproj">
+    <Build />
+    <Deploy />
+  </Project>
 </Solution>

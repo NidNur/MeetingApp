@@ -135,13 +135,13 @@ describe('Login form', () => {
     expect(fixture.componentInstance.submitting()).toBeFalse();
   });
 
-  it('clears the password and opens the account page after successful authentication', () => {
+  it('clears the password and opens the meeting list after successful authentication', () => {
     setValidForm();
     fixture.componentInstance.submit();
     backend.expectOne('/api/auth/login').flush(response());
     expect(auth.isAuthenticated()).toBeTrue();
     expect(fixture.componentInstance.form.controls.password.value).toBe('');
-    expect(router.navigate).toHaveBeenCalledWith(['/account'], { replaceUrl: true });
+    expect(router.navigate).toHaveBeenCalledWith(['/meetings'], { replaceUrl: true });
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('test.jwt.token');
   });
 

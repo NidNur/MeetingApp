@@ -1,0 +1,130 @@
+<section class="meetings-card" aria-labelledby="meetings-title" [attr.aria-busy]="loading()">
+  <header class="page-heading">
+    <div>
+      <h2 id="meetings-title">Toplantılarım</h2>
+      <p class="hint">Toplantılarınızı ve belgelerinizi buradan yönetin.</p>
+    </div>
+    <a class="button primary" routerLink="/meetings/new">Yeni toplantı</a>
+  </header>
+
+  <p class="time-zone">Tarih ve saatler tarayıcınızın saat diliminde ({{ browserTimeZone }}) gösterilir.</p>
+
+  @if (feedback()) {
+    <p class="success" role="status">{{ feedback() }}</p>
+  }
+  @if (documentError()) {
+    <p class="error" role="alert">{{ documentError() }}</p>
+  }
+
+  @if (loading()) {
+    <p class="loading" role="status">Toplantılar yükleniyor…</p>
+  } @else if (error()) {
+    <div class="state-panel">
+      <p class="error" role="alert">{{ error() }}</p>
+      <button type="button" (click)="loadPage()">Yeniden dene</button>
+    </div>
+  } @else if (meetings().length === 0) {
+    <div class="state-panel empty" role="status">
+      <h3>Henüz toplantınız yok</h3>
+      <p>İlk toplantınızı ekleyerek başlayabilirsiniz.</p>
+      <a class="button primary" routerLink="/meetings/new">Toplantı oluştur</a>
+    </div>
+  } @else {
+    <div class="table-container">
+      <table>
+        <caption class="visually-hidden">Toplantılarınız; başlangıç ve bitiş saatleri, durum ve işlemler</caption>
+        <thead>
+          <tr>
+            <th scope="col">Toplantı</th>
+            <th scope="col">Başlangıç / Bitiş</th>
+            <th scope="col">Durum</th>
+            <th scope="col">Belge</th>
+            <th scope="col">İşlemler</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (meeting of meetings(); track meeting.id) {
+            <tr [attr.data-meeting-id]="meeting.id">
+              <td class="meeting-info" data-label="Toplantı">
+                <span class="meeting-name">{{ meeting.name }}</span>
+                <p class="description">{{ meeting.description }}</p>
+              </td>
+              <td class="dates" data-label="Başlangıç / Bitiş">
+                <span><span class="date-label">Başlangıç:</span> <time [attr.datetime]="meeting.startsAtUtc">{{ meeting.startsAtUtc | date:'dd.MM.yyyy HH:mm' }}</time></span>
+                <span><span class="date-label">Bitiş:</span> <time [attr.datetime]="meeting.endsAtUtc">{{ meeting.endsAtUtc | date:'dd.MM.yyyy HH:mm' }}</time></span>
+              </td>
+              <td data-label="Durum">
+                <span class="status" [class.cancelled]="meeting.isCancelled">{{ meeting.isCancelled ? 'İptal edildi' : 'Etkin' }}</span>
+              </td>
+              <td data-label="Belge">
+                @if (meeting.hasDocument) {
+                  <span class="document-name">{{ meeting.documentOriginalName || 'Toplantı belgesi' }}</span>
+                  <div class="actions document-actions">
+                    <button type="button" data-action="download" (click)="downloadDocument(meeting)"
+                      [disabled]="downloadingId() !== null || submitting()" [attr.aria-label]="meeting.name + ' belgesini indir'">
+                      {{ downloadingId() === meeting.id ? 'İndiriliyor…' : 'İndir' }}
+                    </button>
+                    @if (!meeting.isCancelled) {
+                      <button type="button" class="danger-link" data-action="deleteDocument" (click)="openConfirmation('deleteDocument', meeting)"
+                        [disabled]="submitting()" [attr.aria-label]="meeting.name + ' belgesini sil'">Belgeyi sil</button>
+                    }
+                  </div>
+                } @else {
+                  <span class="muted">Belge yok</span>
+                }
+              </td>
+              <td data-label="İşlemler">
+                <div class="actions meeting-actions">
+                  @if (!meeting.isCancelled) {
+                    <a class="button" data-action="edit" [routerLink]="['/meetings', meeting.id, 'edit']"
+                      [attr.aria-label]="meeting.name + ' toplantısını düzenle'">Düzenle</a>
+                    <button type="button" data-action="cancel" (click)="openConfirmation('cancel', meeting)"
+                      [disabled]="submitting()" [attr.aria-label]="meeting.name + ' toplantısını iptal et'">İptal et</button>
+                  }
+                  <button type="button" class="danger-link" data-action="delete" (click)="openConfirmation('delete', meeting)"
+                    [disabled]="submitting()" [attr.aria-label]="meeting.name + ' toplantısını sil'">Sil</button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <nav class="pagination" aria-label="Toplantı sayfaları">
+      <p>{{ totalCount() }} toplantıdan {{ firstItem() }}–{{ lastItem() }} gösteriliyor</p>
+      <div class="pagination-controls">
+        <button type="button" data-page="previous" (click)="loadPage(page() - 1)" [disabled]="page() <= 1 || submitting()">Önceki</button>
+        <span aria-live="polite">Sayfa {{ page() }} / {{ pageCount() }}</span>
+        <button type="button" data-page="next" (click)="loadPage(page() + 1)" [disabled]="page() >= pageCount() || submitting()">Sonraki</button>
+      </div>
+    </nav>
+  }
+</section>
+
+<dialog #confirmationDialog aria-labelledby="confirmation-title" aria-describedby="confirmation-description"
+  (cancel)="onDialogCancel($event)" (close)="onDialogClose()" [attr.aria-busy]="submitting()">
+  <h2 id="confirmation-title">{{ confirmationTitle() }}</h2>
+  <div id="confirmation-description">
+    @if (confirmation(); as pending) {
+      <p class="confirmation-name">{{ pending.meeting.name }}</p>
+      @switch (pending.action) {
+        @case ('cancel') { <p>Toplantı iptal edildiğinde düzenlenemez ve belgesi silinemez. İptal edilen toplantılar sistem tarafından daha sonra otomatik silinir.</p> }
+        @case ('delete') { <p>Toplantı ve varsa belgesi kalıcı olarak silinir. Bu işlem geri alınamaz.</p> }
+        @case ('deleteDocument') { <p>Toplantının belgesi kalıcı olarak silinir. Toplantı kayıtlı kalır.</p> }
+      }
+    }
+  </div>
+  @if (confirmationError()) {
+    <p class="error" role="alert">{{ confirmationError() }}</p>
+  }
+  @if (submitting()) { <p role="status">İşlem tamamlanıyor…</p> }
+  <div class="dialog-actions">
+    <button type="button" data-confirm="dismiss" (click)="dismissConfirmation()" [disabled]="submitting()" autofocus>
+      {{ needsRefresh() ? 'Kapat ve listeyi yenile' : 'Vazgeç' }}
+    </button>
+    <button type="button" class="danger" data-confirm="submit" (click)="confirmAction()" [disabled]="submitting() || needsRefresh()">
+      {{ submitting() ? 'İşleniyor…' : confirmLabel() }}
+    </button>
+  </div>
+</dialog>

@@ -44,7 +44,7 @@ export class Login {
       .subscribe({
         next: () => {
           this.form.controls.password.reset();
-          void this.router.navigate(['/account'], { replaceUrl: true });
+          void this.router.navigate(['/meetings'], { replaceUrl: true });
         },
         error: (error: unknown) => this.errorMessage.set(this.describeError(error)),
       });
