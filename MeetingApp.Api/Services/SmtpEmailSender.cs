@@ -29,11 +29,27 @@ public class SmtpEmailSender : IEmailSender
         email.Body = body;
 
         using var client = new SmtpClient { Timeout = 10_000 };
-        await client.ConnectAsync(_options.Host, _options.Port, _options.Security, cancellationToken);
+        var stage = SmtpDeliveryStage.Connect;
+        try
+        {
+            await client.ConnectAsync(_options.Host, _options.Port, _options.Security, cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(_options.Username))
-            await client.AuthenticateAsync(_options.Username, _options.Password!, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(_options.Username))
+            {
+                stage = SmtpDeliveryStage.Authenticate;
+                await client.AuthenticateAsync(_options.Username, _options.Password!, cancellationToken);
+            }
 
-        await client.SendAsync(email, cancellationToken);
+            stage = SmtpDeliveryStage.Send;
+            await client.SendAsync(email, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            throw new SmtpDeliveryException(stage, exception);
+        }
     }
 }

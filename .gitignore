@@ -9,6 +9,11 @@
 **/obj/
 *.user
 *.suo
+*.publishsettings
+*.PublishSettings
+
+# Yayin paketleri
+artifacts/
 
 # Angular
 **/node_modules/

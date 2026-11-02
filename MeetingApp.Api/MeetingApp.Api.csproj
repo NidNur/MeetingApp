@@ -23,4 +23,24 @@
     <ProjectReference Include="..\MeetingApp.Model\MeetingApp.Model.csproj" />
   </ItemGroup>
 
+  <Target Name="PublishAngularFrontend" AfterTargets="ComputeFilesToPublish"
+          Condition="'$(PublishFrontend)' == 'true'">
+    <PropertyGroup>
+      <FrontendDirectory>$(MSBuildProjectDirectory)/../MeetingApp.Web/</FrontendDirectory>
+      <FrontendOutput>$(FrontendDirectory)dist/meeting-app/browser/</FrontendOutput>
+      <FrontendNpmCommand Condition="$([MSBuild]::IsOSPlatform('Windows'))">npm.cmd</FrontendNpmCommand>
+      <FrontendNpmCommand Condition="'$(FrontendNpmCommand)' == ''">npm</FrontendNpmCommand>
+    </PropertyGroup>
+    <Exec WorkingDirectory="$(FrontendDirectory)" Command="$(FrontendNpmCommand) ci" />
+    <Exec WorkingDirectory="$(FrontendDirectory)" Command="$(FrontendNpmCommand) run build -- --configuration production" />
+    <ItemGroup>
+      <FrontendFiles Include="$(FrontendOutput)**/*" />
+      <ResolvedFileToPublish Include="@(FrontendFiles)" Exclude="@(ResolvedFileToPublish)">
+        <RelativePath>wwwroot/%(FrontendFiles.RecursiveDir)%(FrontendFiles.Filename)%(FrontendFiles.Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
+
 </Project>

@@ -4,6 +4,28 @@ ASP.NET Core 10 API, Angular 20.3 arayüz ve SQL Server 2022 kullanan toplantı 
 Kullanıcılar hesap oluşturabilir, kendi toplantılarını ve dokümanlarını yönetebilir, toplantı değişikliklerini
 e-posta ile takip edebilir. Model, Context, API ve Web katmanları ayrı projelerdedir.
 
+## Canlı demo
+
+[Uygulamayı aç](https://meetingapp-nida.runasp.net/login)
+
+API ve Angular, MonsterASP.NET Free üzerinde aynı HTTPS adresinden çalışır; veritabanı hosting'deki MSSQL'dir.
+HTTPS sertifikası, HTTP → HTTPS yönlendirmesi, SQL bağlantı sağlık kontrolü, korunan API'lerin girişsiz
+erişimi reddetmesi ve Angular alt sayfaları doğrulandı. Kullanıcı demo üzerinde yeni hesapla giriş yaptı;
+belgeli toplantı oluşturma, belge indirme, mevcut belgeyi koruyarak toplantı düzenleme ve iptal
+işlemlerini denedi.
+
+- Canlı demoda Gmail SMTP gönderimi doğrulandı; `EmailDelivery__Enabled=true` ile gönderim worker'ı açık.
+  02.11.2026 tarihinde bekleyen 8 mesajın tamamında outbox gönderim tarihi doldu ve hata alanı temizlendi.
+  Ardından yeni hesapla kayıt ve toplantı oluşturma denemesinde hoş geldiniz ve toplantı e-postalarının
+  alıcının gelen kutusuna ulaştığı kullanıcı tarafından doğrulandı. Yerel Docker kurulumunda e-postalar
+  Mailpit'te incelenebilir.
+- Free planda üç saat istek almayan uygulama uyuyabilir; bu sırada e-posta ve temizlik worker'ları durur.
+  Sonraki ziyaret uygulamayı yeniden başlatır. Kesintisiz arka plan çalışması garanti edilmez.
+- Canlı ortamda doğrudan toplantı silme, worker ile silme/trigger ve yeniden başlatma sonrası dosya
+  kalıcılığı henüz ayrıca doğrulanmadı. Bu demo için tam otomatik uçtan uca test yapıldığı iddia edilmez.
+
+Yayın adımları ve doğrulama kapsamı [demo yayın rehberinde](docs/DEPLOYMENT.md) yer alır.
+
 ## Özellikler
 
 - Ad, soyad, e-posta, telefon, parola ve isteğe bağlı profil resmiyle kayıt.
@@ -441,7 +463,9 @@ docker compose logs --tail 100 api
 
 ## Kapsam
 
-Docker kurulumu yerel inceleme/geliştirme içindir; canlı yayın, alan adı ve HTTPS ters proxy kurulumu yapılmamıştır.
+Docker kurulumu yerel inceleme/geliştirme içindir. Ücretsiz HTTPS demosunun doğrulanan işlevleri ve
+sınırları yukarıdaki canlı demo bölümünde açıklanır. Yeniden yayın için klasör profili,
+ZIP hazırlama scripti ve [demo yayın rehberi](docs/DEPLOYMENT.md) bulunur.
 nginx HTTP gzip'i açıktır; yüklenen dosyaları diskte gzip olarak saklama özelliği eklenmemiştir.
 Profil resmi kayıt sırasında saklanır; mevcut API ayrı bir profil resmi indirme/güncelleme endpoint'i sunmaz.
 Toplantı katılımcısı yönetimi ve zamanlanmış hatırlatma e-postaları bulunmaz.

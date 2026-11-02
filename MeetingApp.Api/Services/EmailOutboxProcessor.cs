@@ -75,20 +75,19 @@ public class EmailOutboxProcessor
             }
             catch (Exception exception)
             {
-                var errorType = exception.GetType().Name;
-                if (errorType.Length > 500) errorType = errorType[..500];
+                var errorSummary = SmtpDeliveryException.GetSafeSummary(exception);
                 var nextAttempt = _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(_options.RetryDelaySeconds);
                 await messages.Where(message => message.Id == id && message.LockId == lockId
                         && message.SentAtUtc == null)
                     .ExecuteUpdateAsync(setters => setters
-                        .SetProperty(message => message.LastError, errorType)
+                        .SetProperty(message => message.LastError, errorSummary)
                         .SetProperty(message => message.NextAttemptAtUtc, nextAttempt)
                         .SetProperty(message => message.LockId, (Guid?)null)
                         .SetProperty(message => message.LockedUntilUtc, (DateTime?)null), cancellationToken);
 
                 _logger.LogWarning(
-                    "E-posta gönderilemedi. Kayıt: {EmailId}, hata türü: {ErrorType}. Yeniden denenecek.",
-                    id, errorType);
+                    "E-posta gönderilemedi. Kayıt: {EmailId}, hata ayrıntısı: {ErrorSummary}. Yeniden denenecek.",
+                    id, errorSummary);
                 continue;
             }
 

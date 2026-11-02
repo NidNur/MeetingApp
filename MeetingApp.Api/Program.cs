@@ -107,6 +107,7 @@ if (app.Configuration.GetValue<bool?>("Swagger:Enabled") ?? app.Environment.IsDe
 
 if (app.Configuration.GetValue("HttpsRedirection:Enabled", true))
     app.UseHttpsRedirection();
+app.UseFrontendHosting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
