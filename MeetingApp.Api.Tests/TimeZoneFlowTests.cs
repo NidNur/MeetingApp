@@ -159,7 +159,7 @@ public class TimeZoneFlowTests
             using (var form = Registration(recipient, "Europe/Rome"))
             using (var response = await http.PostAsync("/api/auth/register", form, cancellationToken))
                 Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-            await Authenticate(http, recipient, "Europe/Istanbul", cancellationToken);
+            await Authenticate(http, recipient, "Europe/Rome", cancellationToken);
             Assert.Equal("Europe/Rome", await StoredZone(dbOptions, recipient, cancellationToken));
             using (var me = await http.GetAsync("/api/auth/me", cancellationToken))
             {
@@ -231,7 +231,7 @@ public class TimeZoneFlowTests
             await Authenticate(http, legacy.Email, "Europe/Rome", cancellationToken);
             Assert.Equal("Europe/Rome", await StoredZone(dbOptions, legacy.Email, cancellationToken));
             await Authenticate(http, legacy.Email, "Europe/Istanbul", cancellationToken);
-            Assert.Equal("Europe/Rome", await StoredZone(dbOptions, legacy.Email, cancellationToken));
+            Assert.Equal("Europe/Istanbul", await StoredZone(dbOptions, legacy.Email, cancellationToken));
         }
         catch (SqlException exception)
         {

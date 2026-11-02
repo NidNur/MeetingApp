@@ -21,15 +21,18 @@ public class MeetingsController : ControllerBase
     private readonly AppDbContext _context;
     private readonly MeetingDocumentStorage _documentStorage;
     private readonly NotificationEmailService _notificationEmails;
+    private readonly DocumentDeletionService _documentDeletions;
 
     public MeetingsController(
         AppDbContext context,
         MeetingDocumentStorage documentStorage,
-        NotificationEmailService notificationEmails)
+        NotificationEmailService notificationEmails,
+        DocumentDeletionService documentDeletions)
     {
         _context = context;
         _documentStorage = documentStorage;
         _notificationEmails = notificationEmails;
+        _documentDeletions = documentDeletions;
     }
 
     [HttpGet]
@@ -192,6 +195,7 @@ public class MeetingsController : ControllerBase
         var endsAt = request.EndsAtUtc!.Value.UtcDateTime;
 
         int updated;
+        DocumentDeletionJob? deletionJob = null;
         try
         {
             await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
@@ -214,6 +218,7 @@ public class MeetingsController : ControllerBase
                 meeting.EndsAtUtc = endsAt;
                 meeting.DocumentPath = fileName;
                 meeting.DocumentOriginalName = originalName;
+                if (document is not null) deletionJob = _documentDeletions.Enqueue(oldFile);
                 await _notificationEmails.QueueMeetingAsync(meeting, MeetingNotificationType.Updated, cancellationToken);
                 await _context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
@@ -231,7 +236,7 @@ public class MeetingsController : ControllerBase
             return ChangedMeeting();
         }
 
-        if (document is not null) _documentStorage.TryDelete(oldFile);
+        await _documentDeletions.ProcessAsync(deletionJob?.Id, cancellationToken);
 
         return Ok(ToResponse(meeting));
     }
@@ -287,14 +292,22 @@ public class MeetingsController : ControllerBase
 
         if (meeting is null) return NotFound();
 
-        var deleted = await _context.Meetings
-            .Where(current => current.Id == id && current.CreatedById == userId.Value
-                && current.DocumentPath == meeting.DocumentPath)
-            .ExecuteDeleteAsync(cancellationToken);
+        DocumentDeletionJob? deletionJob;
+        await using (var transaction = await _context.Database.BeginTransactionAsync(cancellationToken))
+        {
+            var deleted = await _context.Meetings
+                .Where(current => current.Id == id && current.CreatedById == userId.Value
+                    && current.DocumentPath == meeting.DocumentPath)
+                .ExecuteDeleteAsync(cancellationToken);
 
-        if (deleted == 0) return ChangedMeeting();
+            if (deleted == 0) return ChangedMeeting();
 
-        _documentStorage.TryDelete(meeting.DocumentPath);
+            deletionJob = _documentDeletions.Enqueue(meeting.DocumentPath);
+            await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        await _documentDeletions.ProcessAsync(deletionJob?.Id, cancellationToken);
         return NoContent();
     }
 
@@ -342,16 +355,24 @@ public class MeetingsController : ControllerBase
             return Conflict(new { message = "İptal edilmiş toplantı güncellenemez." });
         }
 
-        var updated = await _context.Meetings
-            .Where(current => current.Id == id && current.CreatedById == userId.Value
-                && current.DocumentPath == meeting.DocumentPath && !current.IsCancelled)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(current => current.DocumentPath, (string?)null)
-                .SetProperty(current => current.DocumentOriginalName, (string?)null), cancellationToken);
+        DocumentDeletionJob? deletionJob;
+        await using (var transaction = await _context.Database.BeginTransactionAsync(cancellationToken))
+        {
+            var updated = await _context.Meetings
+                .Where(current => current.Id == id && current.CreatedById == userId.Value
+                    && current.DocumentPath == meeting.DocumentPath && !current.IsCancelled)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(current => current.DocumentPath, (string?)null)
+                    .SetProperty(current => current.DocumentOriginalName, (string?)null), cancellationToken);
 
-        if (updated == 0) return ChangedMeeting();
+            if (updated == 0) return ChangedMeeting();
 
-        _documentStorage.TryDelete(meeting.DocumentPath);
+            deletionJob = _documentDeletions.Enqueue(meeting.DocumentPath);
+            await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        await _documentDeletions.ProcessAsync(deletionJob?.Id, cancellationToken);
         return NoContent();
     }
 

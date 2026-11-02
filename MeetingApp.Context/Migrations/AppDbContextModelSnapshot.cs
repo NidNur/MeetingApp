@@ -79,6 +79,32 @@ namespace MeetingApp.Context.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("MeetingApp.Model.Entities.DocumentDeletionJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DocumentPath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("NextAttemptAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NextAttemptAtUtc", "Id");
+
+                    b.ToTable("DocumentDeletionJobs", (string)null);
+                });
+
             modelBuilder.Entity("MeetingApp.Model.Entities.EmailOutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")

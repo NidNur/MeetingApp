@@ -35,7 +35,7 @@ Yayın adımları ve doğrulama kapsamı [demo yayın rehberinde](docs/DEPLOYMEN
 - Hoş geldiniz ve toplantı oluşturma/güncelleme/iptal e-postaları; SQL outbox üzerinden arka planda gönderim.
 - İptal edilen toplantıları bekleme süresi sonunda tablodan tamamen silme ve SQL trigger ile silme günlüğü tutma.
 - UTC tarih saklama; ekranda tarayıcının, e-postada alıcının kayıtlı saat dilimine göre gösterim.
-- Hesap bilgilerini görüntüleme ve e-posta saat dilimini değiştirme.
+- Hesap bilgilerini ve otomatik belirlenen e-posta saat dilimini görüntüleme.
 
 Toplantı e-postaları şu anda yalnızca toplantıyı oluşturan kullanıcıya gönderilir.
 Hazır kullanıcı hesabı yoktur; ilk kullanımda **Kayıt ol** ekranından hesap oluşturulur.
@@ -280,7 +280,7 @@ Ortam değişkenlerinde `:` yerine çift alt çizgi kullanılır: `Jwt:SigningKe
 | `Smtp:AllowUnencryptedRelay` | Güvenilen Docker test relay'i için açık izin; varsayılan kapalı |
 | `EmailDelivery:Enabled` / `PollIntervalSeconds` | E-posta worker'ı: açık / 5 saniye |
 | `EmailDelivery:RetryDelaySeconds` / `BatchSize` | Yeniden deneme: 30 saniye / tur başına 20 mesaj |
-| `MeetingCleanup:Enabled` / `PollIntervalSeconds` | Temizlik worker'ı: açık / 60 saniye |
+| `MeetingCleanup:Enabled` / `PollIntervalSeconds` | İptal temizliği: açık / temizlik ve doküman yeniden deneme periyodu: 60 saniye |
 | `MeetingCleanup:RetentionHours` / `BatchSize` | İptal sonrası 24 saat / tur başına 100 kayıt |
 | `DatabaseStartup:ApplyMigrations` | Yerelde kapalı, tam Docker kurulumunda açık |
 | `DatabaseStartup:MaxAttempts` / `RetryDelaySeconds` | Açılış migration'ı: en fazla 6 deneme / arada 5 saniye |
@@ -301,6 +301,7 @@ Gerçek `.env`, User Secrets, yüklenen dosyalar ve derleme çıktıları Git'e 
 | `20261031174523_AddMeetingDeletionAudit` | MeetingDeletionLogs ve `TR_Meetings_DeleteLog` trigger'ı |
 | `20261031181404_AddEmailOutbox` | EmailOutboxMessages kuyruğu |
 | `20261101081744_AddUserTimeZone` | Kullanıcıya nullable IANA `TimeZoneId` alanı |
+| `20261102085802_AddDocumentDeletionQueue` | Kalıcı doküman silme kuyruğu ve geçmiş silme loglarından bekleyen dosyaların alınması |
 
 Komutları repo kökünde çalıştırın. `--project` migration'ın tutulduğu Context katmanını,
 `--startup-project` ayarları yükleyen API projesini belirtir. `dotnet tool restore`,
@@ -318,7 +319,7 @@ Docker açılışı aynı migration'ları otomatik uygular; trigger'ı SSMS'te a
 
 SSMS'te **SQL Server Kimlik Doğrulaması**, kullanıcı `sa`, ilgili `.env` parolası ve yerel kurulum için
 **Sunucu Sertifikasına Güven** seçilir. `MeetingAppDb → Tablolar` altında `Users`, `Meetings`,
-`MeetingDeletionLogs`, `EmailOutboxMessages` ve `__EFMigrationsHistory` bulunur.
+`MeetingDeletionLogs`, `EmailOutboxMessages`, `DocumentDeletionJobs` ve `__EFMigrationsHistory` bulunur.
 
 ## Mimari ve işlem akışı
 
@@ -363,7 +364,18 @@ transaction olamadığından kesinti anında e-posta tekrar teslim edilebilir.
 düzenlenemez. `MeetingCleanupWorker` her 60 saniyede kontrol eder, iptalin üzerinden 24 saat geçen
 kayıtları gerçek DELETE ile siler. SQL trigger'ı silinen satırları `MeetingDeletionLogs` tablosuna yazar.
 Kullanıcının doğrudan silmesi de aynı trigger'dan geçer. Log tablosu silinen toplantının bilgilerini saklar.
-Her iki worker da API sürecinde çalışır; API kapalıyken gönderim/temizlik yapılmaz.
+Worker'lar API sürecinde çalışır; API kapalıyken gönderim/temizlik yapılmaz.
+
+**Doküman silme kuyruğu:** Toplantı silme, belge kaldırma veya belge değiştirme işlemi ile eski
+dosyanın `DocumentDeletionJobs` kaydı aynı SQL transaction'ında kaydedilir. Commit sonrasında dosya
+hemen silinmeye çalışılır. İzin veya disk erişimi hatasında iş kuyrukta kalır; `DocumentDeletionWorker`
+sonraki turlarda yeniden dener. Dosya zaten yoksa iş tamamlanır. Hâlâ bir toplantının kullandığı dosya
+silinmez. Bu worker, iptal temizliği `MeetingCleanup:Enabled=false` ile kapatılsa da çalışır;
+aynı `PollIntervalSeconds` ve `BatchSize` ayarlarını kullanır.
+
+Yeni migration, eski silme loglarında bulunan ve artık toplantıya bağlı olmayan doküman yollarını da
+kuyruğa alır. Silme logunda olmayan eski dosyaları diskten tarayarak keşfetmez. Başarısız yeni yüklemenin
+telafi temizliği bu kuyruktan ayrı olarak dosya servisinde yürütülür.
 
 **Dosyalar:** Profil resmi en fazla 2 MB JPG/PNG, doküman en fazla 10 MB PDF/DOCX olabilir.
 Boyut, uzantı ve içerik kontrolünden geçen dosyalar `Storage/ProfileImages` / `Storage/MeetingDocuments`
@@ -372,8 +384,10 @@ JWT ve sahiplik kontrolü yapılan API endpoint'inden indirilir. Docker'da `/app
 
 **Saat dilimi:** Toplantı tarihleri UTC `datetime2` olarak saklanır, API yanıtı `Z` içerir.
 Ekran tarayıcının saat dilimini kullanır. E-posta, kullanıcının kayıtlı `TimeZoneId` değeri ve ilgili tarihin
-yaz/kış saati kurallarıyla hazırlanır; alan boş/geçersizse UTC'ye dönülür. Hesap ekranındaki tercih
-e-postayı etkiler; ekran tarayıcı saat dilimini kullanmaya devam eder. Örneğin 05.11.2026 14:00 İstanbul
+yaz/kış saati kurallarıyla hazırlanır; alan boş/geçersizse UTC'ye dönülür. Kayıtta ve her başarılı girişte
+tarayıcının bildirdiği geçerli saat dilimi kullanıcıya kaydedilir; elle seçim yapılmaz. Tarayıcı saat dilimini
+belirleyemezse girişte kayıtlı değer korunur. Birden fazla cihazda son başarılı girişte bildirilen saat dilimi
+e-postalar için kullanılır. Örneğin 05.11.2026 14:00 İstanbul
 saati SQL'de 11:00 UTC, İstanbul kullanıcısının e-postasında `05.11.2026 14:00 (Europe/Istanbul, UTC+03:00)` olur.
 API Docker imajı ICU/tzdata desteği olan Ubuntu Noble kullanır; globalization invariant modu kapalıdır.
 
@@ -409,6 +423,13 @@ veritabanını oluşturur ve sonunda siler. Hesap veritabanı oluşturma/silme y
 Bağlantı API User Secrets'tan veya isteğe bağlı `MEETINGAPP_TEST_SQL_CONNECTION` ortam değişkeninden okunur.
 Mevcut `MeetingAppDb` kayıtları kullanılmaz; Docker'ın 14333 portu kabul edilmez.
 Testte SMTP gönderimi ve cleanup kapalıdır; e-posta içeriği outbox'tan doğrulanır.
+
+Doküman kuyruğunun SQL regresyonları ayrı olarak `MEETINGAPP_DOCUMENT_QUEUE_TEST_CONNECTION`
+ortam değişkeniyle etkinleşir; bağlantı tanımlı değilse atlanır. Yalnızca loopback sunucudaki
+`DocumentQueueCheck_` önekli test veritabanı kabul edilir. Bu testler veritabanını ve test klasörlerini
+silmez. Kilitli dosyanın yeniden denenmesi, olmayan dosyanın güvenle tamamlanması, aktif dosyanın
+korunması ve yeni DbContext ile bekleyen işin devam etmesi kontrol edilir; dosya kilidi senaryosu
+Windows'ta çalışır. Gerçek SMTP kullanılmaz.
 
 ### Angular testleri ve build
 

@@ -22,6 +22,7 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(conn
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 builder.Services.AddScoped<ProfileImageStorage>();
 builder.Services.AddScoped<MeetingDocumentStorage>();
+builder.Services.AddScoped<DocumentDeletionService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddOptions<DatabaseStartupOptions>()
     .BindConfiguration("DatabaseStartup")
@@ -33,6 +34,7 @@ builder.Services.AddOptions<MeetingCleanupOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 builder.Services.AddHostedService<MeetingCleanupWorker>();
+builder.Services.AddHostedService<DocumentDeletionWorker>();
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<NotificationEmailService>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();

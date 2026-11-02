@@ -72,20 +72,15 @@ public class AuthController : ControllerBase
         if (verification == PasswordVerificationResult.SuccessRehashNeeded)
         {
             user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
-            await _context.SaveChangesAsync(cancellationToken);
         }
 
-        if (string.IsNullOrWhiteSpace(user.TimeZoneId)
-            && !string.IsNullOrWhiteSpace(request.TimeZoneId))
+        if (!string.IsNullOrWhiteSpace(request.TimeZoneId))
         {
-            var timeZoneId = request.TimeZoneId.Trim();
-            var previousTimeZoneId = user.TimeZoneId;
-            await _context.Users
-                .Where(existingUser => existingUser.Id == user.Id
-                    && existingUser.TimeZoneId == previousTimeZoneId)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(existingUser => existingUser.TimeZoneId, timeZoneId), cancellationToken);
+            user.TimeZoneId = request.TimeZoneId.Trim();
         }
+
+        if (_context.ChangeTracker.HasChanges())
+            await _context.SaveChangesAsync(cancellationToken);
 
         return Ok(_jwtTokenService.CreateToken(user));
     }

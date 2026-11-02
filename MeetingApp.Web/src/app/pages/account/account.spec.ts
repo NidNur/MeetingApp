@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { AuthService, UserProfile } from '../../core/auth/auth.service';
 import { Account } from './account';
 
-describe('Account time zone preference', () => {
+describe('Account automatic time zone', () => {
   let fixture: ComponentFixture<Account>;
   let backend: HttpTestingController;
   let auth: AuthService;
@@ -24,8 +24,6 @@ describe('Account time zone preference', () => {
     backend = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(Account);
     fixture.detectChanges();
-    backend.expectOne('/api/auth/me').flush(profile);
-    fixture.detectChanges();
   });
 
   afterEach(() => {
@@ -35,109 +33,53 @@ describe('Account time zone preference', () => {
   });
 
   const page = (): HTMLElement => fixture.nativeElement as HTMLElement;
-  const input = (): HTMLInputElement => page().querySelector('#timeZoneId')!;
-  function enter(value: string): void {
-    input().value = value;
-    input().dispatchEvent(new Event('input', { bubbles: true }));
-    fixture.detectChanges();
-  }
-  function submit(): void {
-    page().querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  function loadProfile(value: UserProfile = profile): void {
+    backend.expectOne('/api/auth/me').flush(value);
     fixture.detectChanges();
   }
 
-  it('loads the stored preference without replacing it with the current browser zone', () => {
-    expect(input().value).toBe('Europe/Rome');
+  it('shows the saved browser zone without a manual input or save request', () => {
+    loadProfile();
     expect(page().querySelector('dl')?.textContent).toContain('Europe/Rome');
+    expect(page().textContent).toContain('Saat diliminiz tarayıcınızdan otomatik alınır');
+    expect(page().querySelector('input, select, form')).toBeNull();
     backend.expectNone('/api/auth/me/time-zone');
   });
 
-  it('fills the browser zone only when requested and waits for explicit save', () => {
-    spyOn(Intl, 'DateTimeFormat').and.returnValue({
-      resolvedOptions: () => ({ timeZone: 'Europe/Istanbul' })
-    } as Intl.DateTimeFormat);
-    (page().querySelector('button[type="button"]') as HTMLButtonElement).click();
-    fixture.detectChanges();
-    expect(input().value).toBe('Europe/Istanbul');
-    expect(page().querySelector('dl')?.textContent).toContain('Europe/Rome');
+  it('shows UTC when no browser zone has been saved', () => {
+    loadProfile({ ...profile, timeZoneId: null });
+    expect(page().querySelector('dl')?.textContent).toContain('UTC (saat dilimi belirlenemedi)');
+    expect(page().querySelector('input, select, form')).toBeNull();
     backend.expectNone('/api/auth/me/time-zone');
   });
 
-  it('saves the preference, blocks duplicate requests, and updates the profile after success', () => {
-    enter(' Asia/Tokyo ');
-    submit();
-    const request = backend.expectOne('/api/auth/me/time-zone');
-    expect(request.request.body).toEqual({ timeZoneId: 'Asia/Tokyo' });
-    expect(input().readOnly).toBeTrue();
-    expect((page().querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBeTrue();
-    submit();
-    backend.expectNone('/api/auth/me/time-zone');
-    request.flush({ ...profile, timeZoneId: 'Asia/Tokyo' });
-    fixture.detectChanges();
-    expect(input().readOnly).toBeFalse();
-    expect(page().querySelector('dl')?.textContent).toContain('Asia/Tokyo');
-    expect(page().querySelector('[role="status"]')?.textContent).toContain('Saat diliminiz kaydedildi');
+  it('shows loading status until the profile is available', () => {
+    expect(page().querySelector('section')?.getAttribute('aria-busy')).toBe('true');
+    expect(page().querySelector('[role="status"]')?.textContent).toContain('yükleniyor');
+    expect(page().querySelector('dl')).toBeNull();
+    loadProfile();
+    expect(page().querySelector('section')?.getAttribute('aria-busy')).toBe('false');
+    expect(page().querySelector('[role="status"]')).toBeNull();
   });
 
-  it('shows a safe validation message and preserves the saved preference after a rejected zone', () => {
-    enter('invalid/zone');
-    submit();
-    backend.expectOne('/api/auth/me/time-zone').flush({ errors: { TimeZoneId: ['private-server-detail'] } },
-      { status: 400, statusText: 'Bad Request' });
+  it('allows retry after a failed profile request without exposing server details', () => {
+    backend.expectOne('/api/auth/me').flush({ detail: 'private-server-detail' },
+      { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
-    expect(page().querySelector('[role="alert"]')?.textContent).toContain('Geçerli bir IANA saat dilimi girin');
+    expect(page().querySelector('[role="alert"]')?.textContent).toContain('Hesap bilgileri alınamadı');
     expect(page().textContent).not.toContain('private-server-detail');
-    expect(page().querySelector('dl')?.textContent).toContain('Europe/Rome');
-    expect(input().value).toBe('invalid/zone');
-  });
-
-  it('supports a cleared optional preference with UTC fallback', () => {
-    enter('   ');
-    submit();
-    const request = backend.expectOne('/api/auth/me/time-zone');
-    expect(request.request.body).toEqual({ timeZoneId: null });
-    request.flush({ ...profile, timeZoneId: null });
+    (page().querySelector('button') as HTMLButtonElement).click();
     fixture.detectChanges();
-    expect(input().value).toBe('');
-    expect(page().querySelector('dl')?.textContent).toContain('UTC (saat dilimi belirtilmemiş)');
+    loadProfile();
+    expect(page().querySelector('[role="alert"]')).toBeNull();
+    expect(page().querySelector('dl')?.textContent).toContain(profile.email);
   });
 
-  it('rejects an overlong preference before contacting the API', () => {
-    enter('a'.repeat(101));
-    submit();
+  it('does not show a misleading profile error for an expired session', () => {
+    backend.expectOne('/api/auth/me').flush({}, { status: 401, statusText: 'Unauthorized' });
+    fixture.detectChanges();
+    expect(page().querySelector('[role="alert"]')).toBeNull();
+    expect(page().querySelector('dl')).toBeNull();
     backend.expectNone('/api/auth/me/time-zone');
-    expect(page().querySelector('[role="alert"]')?.textContent).toContain('en fazla 100 karakter');
-  });
-
-  it('allows retry after a server error without displaying success', () => {
-    enter('Europe/Istanbul');
-    submit();
-    backend.expectOne('/api/auth/me/time-zone').flush({}, { status: 500, statusText: 'Server Error' });
-    fixture.detectChanges();
-    expect(page().querySelector('[role="alert"]')?.textContent).toContain('Saat dilimi kaydedilemedi');
-    expect(page().querySelector('[role="status"]')).toBeNull();
-    submit();
-    backend.expectOne('/api/auth/me/time-zone').flush({ ...profile, timeZoneId: 'Europe/Istanbul' });
-    fixture.detectChanges();
-    expect(page().querySelector('dl')?.textContent).toContain('Europe/Istanbul');
-  });
-
-  it('leaves a saved value intact when browser detection is unavailable', () => {
-    spyOn(Intl, 'DateTimeFormat').and.throwError('Intl unavailable');
-    (page().querySelector('button[type="button"]') as HTMLButtonElement).click();
-    fixture.detectChanges();
-    expect(input().value).toBe('Europe/Rome');
-    expect(page().querySelector('[role="alert"]')?.textContent).toContain('elle girebilirsiniz');
-    backend.expectNone('/api/auth/me/time-zone');
-  });
-
-  it('clears stale save feedback when the user starts another edit', () => {
-    enter('Europe/Istanbul');
-    submit();
-    backend.expectOne('/api/auth/me/time-zone').flush({ ...profile, timeZoneId: 'Europe/Istanbul' });
-    fixture.detectChanges();
-    expect(page().querySelector('[role="status"]')).not.toBeNull();
-    enter('Europe/Rome');
-    expect(page().querySelector('[role="status"]')).toBeNull();
   });
 });

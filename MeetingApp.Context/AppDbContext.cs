@@ -18,6 +18,8 @@ public class AppDbContext : DbContext
 
     public DbSet<EmailOutboxMessage> EmailOutboxMessages => Set<EmailOutboxMessage>();
 
+    public DbSet<DocumentDeletionJob> DocumentDeletionJobs => Set<DocumentDeletionJob>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

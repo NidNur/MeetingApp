@@ -63,6 +63,30 @@ describe('Browser time zone and profile transport', () => {
     request.flush({}, { status: 401, statusText: 'Unauthorized' });
   });
 
+  it('reads the browser zone again on each login after it changes', () => {
+    const formatter = spyOn(Intl, 'DateTimeFormat').and.returnValue({
+      resolvedOptions: () => ({ timeZone: 'Europe/Rome' })
+    } as Intl.DateTimeFormat);
+    const session = {
+      accessToken: 'test-token', expiresAtUtc: new Date(Date.now() + 3_600_000).toISOString(),
+      userId: 7, firstName: 'Lale', lastName: 'Deneme'
+    };
+
+    auth.login({ email: 'lale@example.test', password: 'Parola' }).subscribe();
+    const firstLogin = backend.expectOne('/api/auth/login');
+    expect(firstLogin.request.body.timeZoneId).toBe('Europe/Rome');
+    firstLogin.flush(session);
+    auth.clearSession();
+
+    formatter.and.returnValue({
+      resolvedOptions: () => ({ timeZone: 'Europe/Istanbul' })
+    } as Intl.DateTimeFormat);
+    auth.login({ email: 'lale@example.test', password: 'Parola' }).subscribe();
+    const nextLogin = backend.expectOne('/api/auth/login');
+    expect(nextLogin.request.body.timeZoneId).toBe('Europe/Istanbul');
+    nextLogin.flush(session);
+  });
+
   it('omits the optional registration field when detection is unavailable', () => {
     spyOn(Intl, 'DateTimeFormat').and.throwError('Intl unavailable');
     auth.register(registration).subscribe();

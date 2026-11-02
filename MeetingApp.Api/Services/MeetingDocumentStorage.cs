@@ -155,18 +155,20 @@ public class MeetingDocumentStorage
             : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     }
 
-    public void TryDelete(string? fileName)
+    public bool TryDelete(string? fileName)
     {
         if (fileName is null)
-            return;
+            return true;
         var path = GetPath(fileName);
         try
         {
             File.Delete(path);
+            return true;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             _logger.LogError(exception, "Toplantı dokümanı silinemedi: {FileName}", fileName);
+            return false;
         }
     }
 

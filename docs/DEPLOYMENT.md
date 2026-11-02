@@ -28,7 +28,7 @@ e-postanın alıcının gelen kutusunda göründüğü kullanıcı tarafından d
 ## Ücretsiz planın sınırı
 
 Sağlayıcıya göre istek almayan uygulama üç saat sonra durdurulabilir; Free planda AlwaysRunning yoktur.
-Bu nedenle e-posta ve toplantı temizleme worker'ları site uykudayken çalışmaz. Sonraki ziyaret API'yi
+Bu nedenle e-posta, toplantı temizleme ve doküman silme worker'ları site uykudayken çalışmaz. Sonraki ziyaret API'yi
 yeniden açınca işleri işlemeye devam eder. Bu yayın, arka plan işlerinin kesintisiz çalıştığı bir canlı
 ortam taahhüdü değildir. [Sağlayıcının açıklaması](https://help.monsterasp.net/websites/configuration/always-running).
 

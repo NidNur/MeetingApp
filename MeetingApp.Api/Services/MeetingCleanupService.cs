@@ -1,5 +1,6 @@
 using MeetingApp.Api.Options;
 using MeetingApp.Context;
+using MeetingApp.Model.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -8,18 +9,18 @@ namespace MeetingApp.Api.Services;
 public class MeetingCleanupService
 {
     private readonly AppDbContext _context;
-    private readonly MeetingDocumentStorage _documentStorage;
+    private readonly DocumentDeletionService _documentDeletions;
     private readonly MeetingCleanupOptions _options;
     private readonly TimeProvider _timeProvider;
 
     public MeetingCleanupService(
         AppDbContext context,
-        MeetingDocumentStorage documentStorage,
+        DocumentDeletionService documentDeletions,
         IOptions<MeetingCleanupOptions> options,
         TimeProvider timeProvider)
     {
         _context = context;
-        _documentStorage = documentStorage;
+        _documentDeletions = documentDeletions;
         _options = options.Value;
         _timeProvider = timeProvider;
     }
@@ -40,18 +41,25 @@ public class MeetingCleanupService
         var deletedCount = 0;
         foreach (var candidate in candidates)
         {
-            var affectedRows = await _context.Meetings
-                .Where(meeting => meeting.Id == candidate.Id
-                    && meeting.IsCancelled
-                    && meeting.CancelledAtUtc.HasValue
-                    && meeting.CancelledAtUtc.Value <= cutoff
-                    && meeting.DocumentPath == candidate.DocumentPath)
-                .ExecuteDeleteAsync(cancellationToken);
+            DocumentDeletionJob? job;
+            await using (var transaction = await _context.Database.BeginTransactionAsync(cancellationToken))
+            {
+                var affectedRows = await _context.Meetings
+                    .Where(meeting => meeting.Id == candidate.Id
+                        && meeting.IsCancelled
+                        && meeting.CancelledAtUtc.HasValue
+                        && meeting.CancelledAtUtc.Value <= cutoff
+                        && meeting.DocumentPath == candidate.DocumentPath)
+                    .ExecuteDeleteAsync(cancellationToken);
 
-            if (affectedRows == 0) continue;
+                if (affectedRows == 0) continue;
 
-            deletedCount += affectedRows;
-            _documentStorage.TryDelete(candidate.DocumentPath);
+                job = _documentDeletions.Enqueue(candidate.DocumentPath);
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                deletedCount += affectedRows;
+            }
+            await _documentDeletions.ProcessAsync(job?.Id, cancellationToken);
         }
 
         return deletedCount;
